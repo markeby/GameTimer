@@ -1,0 +1,12 @@
+*.vpwhist
+*.vpwhistxml
+*.vtg
+*.bin
+*.elf
+*.map
+*.log
+*.cfg
+*.json
+*.svd
+output_*
+
