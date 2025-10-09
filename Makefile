@@ -16,13 +16,13 @@ PROJECT := GameTimer.ino
 INCLUDES := GameTimer.h Knobby.h Player.h
 	   
 # source files
-SOURCES := $(PROJECT) Knobby.cpp FontVerdanaz142.c Player.cpp
+SOURCES := $(PROJECT) Knobby.cpp FontVerdanaz142.c Verdanaz72.c Player.cpp
 
 # library paths
 LIBS := --libraries ./libraries
 
 # serial port for uploading
-DEFAULT_PORT := COM3
+DEFAULT_PORT := COM7
 
 # IP address for uploading
 UPLOAD_OTA := 192.168.2.21

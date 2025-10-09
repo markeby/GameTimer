@@ -9,6 +9,12 @@
 #include <lvgl.h>
 
 //#####################################################################
+#define ONE_MILLION     1000000
+
+extern const lv_font_t Verdanaz_72;
+extern const lv_font_t FontVerdanaz142;
+
+//#####################################################################
 class PLAYER_C
     {
 private:
@@ -32,6 +38,6 @@ private:
  public:
          PLAYER_C   (int number, lv_obj_t* pages, lv_color_t color);
     void Loop       (void);         // Timer loop control
-    void Start      (void);         // Start this time.
+    void Start      (int timer);    // Start this time.
     };
 

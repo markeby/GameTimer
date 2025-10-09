@@ -7,11 +7,11 @@
 #pragma once
 
 //#####################################################################
-enum class KNOBBY
+enum  KNOBBY
     {
-    Null = 0,
-    Up,
-    Down
+    Down = -1,
+    Null =  0,
+    Up   = +1,
     };
 
 class KNOBBY_C
@@ -19,6 +19,7 @@ class KNOBBY_C
 private:
     int32_t Data;
     KNOBBY  Trigger;
+    KNOBBY  PreviousTrigger;
     uint8_t Previous;
     size_t  CycleTime;
 

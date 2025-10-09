@@ -21,11 +21,12 @@
 //#######################################################################
 KNOBBY KNOBBY_C::ScanLoop (void)
     {
-    if ( millis () < CycleTime )
-        return (KNOBBY::Null);
-
     Trigger   = KNOBBY::Null;
-    CycleTime = millis () + 50; // 20ms for next scan
+
+    if ( millis () < CycleTime )
+        return (Trigger);
+
+    CycleTime = millis () + 100; // 1000ms for next scan
 
     uint8_t scan = 0B00000000;
 
@@ -80,6 +81,9 @@ KNOBBY KNOBBY_C::ScanLoop (void)
                 }
             }
         }
+//  if ( PreviousTrigger && Trigger )
+//      delay (500);
+    PreviousTrigger = Trigger;
     return (Trigger);
     }
 

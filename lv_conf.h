@@ -500,7 +500,7 @@
 #define LV_FONT_MONTSERRAT_40 0
 #define LV_FONT_MONTSERRAT_42 0
 #define LV_FONT_MONTSERRAT_44 0
-#define LV_FONT_MONTSERRAT_46 0
+#define LV_FONT_MONTSERRAT_46 1
 #define LV_FONT_MONTSERRAT_48 1
 
 /*Demonstrate special features*/
@@ -641,7 +641,7 @@
 
 #define LV_USE_MSGBOX     0
 
-#define LV_USE_ROLLER     0   /*Requires: lv_label*/
+#define LV_USE_ROLLER     1   /*Requires: lv_label*/
 
 #define LV_USE_SCALE      0
 
@@ -653,13 +653,13 @@
     #define LV_SPAN_SNIPPET_STACK_SIZE 64
 #endif
 
-#define LV_USE_SPINBOX    0
+#define LV_USE_SPINBOX    1
 
 #define LV_USE_SPINNER    0
 
 #define LV_USE_SWITCH     0
 
-#define LV_USE_TEXTAREA   0   /*Requires: lv_label*/
+#define LV_USE_TEXTAREA   1   /*Requires: lv_label*/
 #if LV_USE_TEXTAREA != 0
     #define LV_TEXTAREA_DEF_PWD_SHOW_TIME 1500    /*ms*/
 #endif

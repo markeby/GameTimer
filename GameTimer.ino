@@ -20,11 +20,13 @@ Arduino_GFX*        gfx     = new Arduino_SH8601    (bus, SCREEN_RST, 0, false, 
 TouchDrvCHSC5816    touch;
 TouchDrvInterface*  pTouch;
 uint64_t            DeltaClock;
-PLAYER_C*           Player[NUMBER_OF_PLAYERS];
+PLAYER_C*           Player[MAX_NUMBER_PLAYERS];
 PLAYER_C*           ActivePlayer;
 int                 CurrentPlayer;
 lv_obj_t*           Pages;
-bool                StartState;
+GAME_STATE          GameState;
+int                 NumberPlayers   = DEFAULT_NUMBER_PLAYERS;
+int                 TimerStartValue = DEFAULT_TIME;
 
 //#####################################################################
 void CHSC5816_Initialization(void)
@@ -51,49 +53,33 @@ void my_disp_flush (lv_display_t *disp, const lv_area_t *area, uint8_t *px_map)
     }
 
 //#####################################################################
-// Read the touchpad  ***** not using*****
-//void my_touchpad_read (lv_indev_t *indev, lv_indev_data_t *data)
-//    {
-//    int16_t Touch_x[2], Touch_y[2];
-//    uint8_t touchpad = touch.getPoint (Touch_x, Touch_y);
-//
-//    if ( touchpad > 0 )
-//        {
-//        data->state = LV_INDEV_STATE_PR;
-//
-//        /*Set the coordinates*/
-//        data->point.x = Touch_x[0];
-//        data->point.y = Touch_y[0];
-//
-//        // Serial.print("Data x ");
-//        // Serial.printf("%d\n", x[0]);
-//
-//        // Serial.print("Data y ");
-//        // Serial.printf("%d\n", y[0]);
-//        }
-//    else
-//        data->state = LV_INDEV_STATE_REL;
-//    }
-
-//#####################################################################
 // use Arduinos millis() as tick source
 static uint32_t my_tick (void)
     {
     return millis ();
     }
 
-lv_obj_t* RandomPage[NUMBER_OF_PLAYERS];
+lv_obj_t* RandomPage[MAX_NUMBER_PLAYERS];
 bool      RandomFirst = true;
 int       RandomTimer = 0;
 int       RandomCurrent;
+
+lv_obj_t* NumPlayPage;
+byte      NumPlayPageIndex;
+lv_obj_t* NumPlaySpinbox;
+
+lv_obj_t* TimeSetPage;
+byte      TimeSetPageIndex;
+lv_obj_t* TimeSetPageSpinbox;
+
 //#####################################################################
 void randomizeLoop ()
     {
     if ( RandomFirst )
         {
         RandomFirst = false;
-        RandomCurrent = random (1, 200000) % NUMBER_OF_PLAYERS;
-        lv_tabview_set_act (Pages, NUMBER_OF_PLAYERS + RandomCurrent, LV_ANIM_OFF);
+        RandomCurrent = random (1, 2000) % NumberPlayers;
+        lv_tabview_set_act (Pages, MAX_NUMBER_PLAYERS + RandomCurrent, LV_ANIM_OFF);
         RandomTimer = 1000;
         }
     else
@@ -101,23 +87,48 @@ void randomizeLoop ()
         RandomTimer -= DeltaClock;
         if ( RandomTimer < 0 )
             {
-            RandomCurrent = ++RandomCurrent % NUMBER_OF_PLAYERS;
-            lv_tabview_set_act (Pages, NUMBER_OF_PLAYERS + RandomCurrent, LV_ANIM_OFF);
+            RandomCurrent = ++RandomCurrent % NumberPlayers;
+            DbgD (RandomCurrent);
+            lv_tabview_set_act (Pages, MAX_NUMBER_PLAYERS + RandomCurrent, LV_ANIM_OFF);
             RandomTimer = 1000;
             }
         }
     }
 
 //#####################################################################
-void PlayerStart (int player, bool state)
+void StateChange (GAME_STATE state)
     {
-    StartState = state;
-    CurrentPlayer = player;
-    ActivePlayer  = Player[CurrentPlayer];
-    ActivePlayer->Start ();
+    switch ( state )
+        {
+        case GAME_STATE::SET_PLAYERS:
+            lv_tabview_set_act  (Pages, NumPlayPageIndex, LV_ANIM_OFF);
+            break;
+        case GAME_STATE::SET_TIME:
+            lv_tabview_set_act  (Pages, TimeSetPageIndex, LV_ANIM_OFF);
+            break;
+        case GAME_STATE::SELECT_START:
+            break;
+        case GAME_STATE::IN_PLAY_START:
+            lv_tabview_set_act  (Pages, CurrentPlayer, LV_ANIM_OFF);
+            break;
+        case GAME_STATE::IN_PLAY:
+            lv_tabview_set_act  (Pages, CurrentPlayer, LV_ANIM_OFF);
+            break;
+        default:
+            break;
+        }
+    GameState = state;
     }
 
-lv_palette_t Colors[NUMBER_OF_PLAYERS] = { LV_PALETTE_BLUE, LV_PALETTE_RED };
+//#####################################################################
+void PlayerStart (int player)
+    {
+    CurrentPlayer = player;
+    ActivePlayer  = Player[CurrentPlayer];
+    ActivePlayer->Start (TimerStartValue);
+    }
+
+lv_palette_t Colors[MAX_NUMBER_PLAYERS] = { LV_PALETTE_RED, LV_PALETTE_BLUE, LV_PALETTE_GREEN, LV_PALETTE_PURPLE };
 //#####################################################################
 void lvgl_init (void)
     {
@@ -133,22 +144,16 @@ void lvgl_init (void)
     lv_display_set_flush_cb  (disp, my_disp_flush);
     lv_display_set_buffers   (disp, draw_buf, NULL, sizeof(draw_buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
 
-//    /*Initialize the (dummy) input device driver*/
-//    lv_indev_t *indev = lv_indev_create();
-//    lv_indev_set_type    (indev, LV_INDEV_TYPE_POINTER); /*Touchpad should have POINTER type*/
-//    lv_indev_set_read_cb (indev, my_touchpad_read);
-
     Pages = lv_tabview_create (lv_scr_act ());
     lv_tabview_set_tab_bar_size (Pages, 0);
 
     // Create players pages
-    for ( int z = 0;  z < NUMBER_OF_PLAYERS;  z++)
-        {
-        Player[z] = new PLAYER_C(z,  Pages, lv_palette_main(Colors[z]));
-        }
+    for ( int z = 0;  z < MAX_NUMBER_PLAYERS;  z++)
+        Player[z] = new PLAYER_C(z,  Pages, lv_palette_main (Colors[z]));
+
     // Create coin toss pages
-    static lv_style_t styles[NUMBER_OF_PLAYERS];
-    for ( int z = 0;  z < NUMBER_OF_PLAYERS;  z++)
+    static lv_style_t styles[MAX_NUMBER_PLAYERS];
+    for ( int z = 0;  z < MAX_NUMBER_PLAYERS;  z++)
         {
         RandomPage[z] = lv_tabview_add_tab (Pages, "");
         lv_style_init (&styles[z]);
@@ -157,6 +162,45 @@ void lvgl_init (void)
         lv_obj_add_style (obj, &styles[z], 0);
         lv_obj_center (obj);
         }
+
+    static lv_style_t spinstyle;
+    lv_style_init               (&spinstyle);
+    lv_style_set_text_font      (&spinstyle, &Verdanaz_72);
+    lv_style_set_bg_opa         (&spinstyle, LV_OPA_TRANSP);
+    lv_style_set_border_opa     (&spinstyle, LV_OPA_TRANSP);
+
+    lv_obj_t* label;
+    NumPlayPage = lv_tabview_add_tab (Pages, "");
+    NumPlayPageIndex = MAX_NUMBER_PLAYERS * 2;
+    label = lv_label_create     (NumPlayPage);
+    lv_obj_set_style_text_font  (label, &lv_font_montserrat_46, 0);
+    lv_label_set_text           (label, "Set players");
+    lv_obj_align                (label, LV_ALIGN_TOP_MID, 0, 81);
+
+    NumPlaySpinbox = lv_spinbox_create (NumPlayPage);
+    lv_obj_add_style            (NumPlaySpinbox, &spinstyle, 0);
+    lv_obj_set_size             (NumPlaySpinbox, 72, 100);
+    lv_obj_remove_style         (NumPlaySpinbox, NULL, LV_PART_CURSOR);
+    lv_spinbox_set_range        (NumPlaySpinbox, 2, 4);
+    lv_spinbox_set_digit_format (NumPlaySpinbox, 1, 0);
+    lv_obj_center               (NumPlaySpinbox);
+    lv_spinbox_set_value        (NumPlaySpinbox, NumberPlayers);
+
+    TimeSetPage = lv_tabview_add_tab (Pages, "");
+    TimeSetPageIndex = NumPlayPageIndex + 1;
+    label = lv_label_create     (TimeSetPage);
+    lv_obj_set_style_text_font  (label, &lv_font_montserrat_46, 0);
+    lv_label_set_text           (label, "Set time");
+    lv_obj_align                (label, LV_ALIGN_TOP_MID, 0, 81);
+
+    TimeSetPageSpinbox = lv_spinbox_create (TimeSetPage);
+    lv_obj_add_style            (TimeSetPageSpinbox, &spinstyle, 0);
+    lv_obj_set_size             (TimeSetPageSpinbox, 160, 100);
+    lv_obj_remove_style         (TimeSetPageSpinbox, NULL, LV_PART_CURSOR);
+    lv_spinbox_set_range        (TimeSetPageSpinbox, 10, 100);
+    lv_spinbox_set_digit_format (TimeSetPageSpinbox, 2, 0);
+    lv_obj_center               (TimeSetPageSpinbox);
+    lv_spinbox_set_value        (TimeSetPageSpinbox, TimerStartValue);
     }
 
 //#####################################################################
@@ -189,49 +233,96 @@ void setup ()
 
     // Initialize display
     lvgl_init ();
+
+    // Let's go!
     ActivePlayer = nullptr;
+    StateChange (GAME_STATE::SET_PLAYERS);
     }
 
 //#####################################################################
 void loop()
     {
-    static uint64_t strt = 0;       // Starting time for next frame delta calculation
-    static int      lastKnobKey = 1;
+    static uint64_t last_time   = 0;    // Previous interval time value to calculate delta time
+    static int      last_button = 1;    // Previous button status
+    bool            bump = false;
     uint64_t        runtime;
 
     runtime = micros ();
-    DeltaClock = (int)(runtime - strt);
-    strt = runtime;
+    DeltaClock = (int)(runtime - last_time);
+    last_time = runtime;
 
     lv_timer_handler ();
-
     KNOBBY knob = Knobby.ScanLoop ();
-    if ( knob != KNOBBY::Null )
-        ActivePlayer = nullptr;
+    int button = digitalRead (KNOB_KEY);
+    if ( button & (button != last_button) )
+        bump = true;
+    last_button = button;
 
-    if ( ActivePlayer == nullptr )
-        randomizeLoop ();
-    else if ( !StartState )
-        ActivePlayer->Loop ();
-
-    int z = digitalRead (KNOB_KEY);
-    if ( (z != lastKnobKey) & z )          // Button punched -- new player
+    switch ( GameState )
         {
-        if ( StartState )
-            StartState = false;
-        else if ( ActivePlayer == nullptr )
-            {
-            RandomFirst = true;
-            PlayerStart (random (1, 200000) % NUMBER_OF_PLAYERS, true);
-            }
-        else
-            {
-            CurrentPlayer = ++CurrentPlayer % NUMBER_OF_PLAYERS;
-            PlayerStart (CurrentPlayer, false);
-            }
-        lv_timer_handler ();
-        delay (500);
+        case GAME_STATE::SET_PLAYERS:
+            if ( bump )
+                StateChange (GAME_STATE::SET_TIME);
+            else if ( knob != KNOBBY::Null )
+                {
+                DbgD (NumberPlayers);
+                NumberPlayers = (NumberPlayers + (int)knob) % (MAX_NUMBER_PLAYERS + 1);
+                if ( NumberPlayers < MIN_NUMBER_PLAYERS )
+                    NumberPlayers = MIN_NUMBER_PLAYERS;
+                lv_spinbox_set_value(NumPlaySpinbox, NumberPlayers);
+                lv_obj_invalidate (NumPlaySpinbox);
+                }
+
+            break;
+
+        case GAME_STATE::SET_TIME:
+            if ( bump )
+                StateChange (GAME_STATE::SELECT_START);
+            else if ( knob != KNOBBY::Null )
+                {
+                DbgD (TimerStartValue);
+                TimerStartValue = TimerStartValue + ((int)knob * 10);
+                if ( TimerStartValue > MAX_TIME  )
+                    TimerStartValue = MAX_TIME;
+                if ( TimerStartValue < MIN_TIME )
+                    TimerStartValue = MIN_TIME;
+                lv_spinbox_set_value (TimeSetPageSpinbox, TimerStartValue);
+                lv_obj_invalidate (NumPlaySpinbox);
+                }
+            break;
+
+        case GAME_STATE::SELECT_START:
+            if ( bump )
+                {
+                PlayerStart (RandomCurrent);
+                StateChange (GAME_STATE::IN_PLAY_START);
+                }
+            else
+                randomizeLoop ();
+            break;
+
+        case GAME_STATE::IN_PLAY_START:
+            if ( bump )
+                StateChange (GAME_STATE::IN_PLAY);
+            else if ( knob != KNOBBY::Null )
+                StateChange (GAME_STATE::SELECT_START);
+            break;
+
+        case GAME_STATE::IN_PLAY:
+            if ( bump )
+                PlayerStart (++CurrentPlayer % NumberPlayers);
+            else if ( knob != KNOBBY::Null )
+                StateChange(GAME_STATE::SELECT_START);
+            else
+                ActivePlayer->Loop ();
+            break;
+
+        default:
+            break;
         }
-    lastKnobKey = z;
-    delay (100);
+
+    if (  bump )
+         delay (500);
+    else
+        delay (100);
     }

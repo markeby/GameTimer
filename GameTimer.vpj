@@ -155,6 +155,7 @@
             <F N="FontVerdanaz142.c"/>
             <F N="Knobby.cpp"/>
             <F N="Player.cpp"/>
+            <F N="Verdanaz72.c"/>
         </Folder>
         <Folder
             Name="Headers"

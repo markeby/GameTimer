@@ -28,7 +28,6 @@
     lv_obj_set_size            (Arc, 300, 300);
     lv_arc_set_rotation        (Arc, 270);
     lv_arc_set_bg_angles       (Arc, 0, 359);
-    lv_arc_set_range           (Arc, 0, ARC_RANGE);
     lv_obj_remove_style        (Arc, NULL, LV_PART_KNOB);      // Be sure the knob is not displayed
     lv_obj_set_style_arc_color (Arc, Color, LV_PART_INDICATOR);
     lv_arc_set_value           (Arc, 10);
@@ -38,17 +37,16 @@
     lv_obj_set_style_text_font  (Label, &FontVerdanaz142, 0);
     lv_obj_set_style_text_color (Label, Color, 0);
     lv_label_set_text           (Label, "00");
-    lv_obj_center               (Label);
     lv_obj_align                (Label, LV_ALIGN_CENTER, 0, 0);
 
     lv_timer_t* flash_timer;
     }
 
 //#####################################################################
-void PLAYER_C::Start ()
+void PLAYER_C::Start (int timer)
     {
     ZeroTimer  = -1;
-    Time       = (TIME_PER_TURN_IN_SECONDS + 1) * ONE_MILLION;
+    Time       = timer * ONE_MILLION;
     CountDown  = 0;
     FlashTimer = FLASH_RATE;
     FlashState = true;
@@ -56,8 +54,11 @@ void PLAYER_C::Start ()
     HitZero    = false;
     Active     = true;
 
-    lv_arc_set_value      (Arc, ARC_RANGE);
-    lv_label_set_text_fmt (Label, "%d", TIME_PER_TURN_IN_SECONDS);
+    int arc_range = timer * 100;
+
+    lv_arc_set_range      (Arc, 0, arc_range);
+    lv_arc_set_value      (Arc, 0);
+    lv_label_set_text_fmt (Label, "%d", timer);
     lv_tabview_set_act    (Pages, (byte)Number, LV_ANIM_OFF);
     lv_obj_clear_flag     (Label, LV_OBJ_FLAG_HIDDEN); // Show the object
     ledcWrite             (BUZZER_DATA, 0);          // make sure sound is turned off
@@ -77,8 +78,6 @@ void PLAYER_C::Loop ()
             int t = Time / 10000;
             lv_arc_set_value (Arc, t);
             t = (t + 99) / 100;
-            if ( t > TIME_PER_TURN_IN_SECONDS )
-                t = TIME_PER_TURN_IN_SECONDS;
             lv_label_set_text_fmt (Label, "%d", t);
 
             if ( (t <= TIME_COUNT_DOWN) && (t != TimeSeconds) )
