@@ -30,7 +30,7 @@ private:
     bool        HitZero;            // Hit zero time flag
     int         ZeroPhase;          // Multi phase sounds played at zero time
     int         ZeroTimer;          // timer for each phase
-    bool        Flash;              // Flag for flashing display components
+    bool        FlashFlag;          // Flag for flashing display components
     int         FlashTimer;         // timer counter for flashing
     bool        FlashState;         // Current state for flashing
     bool        Active;             // timer is active
@@ -39,5 +39,6 @@ private:
          PLAYER_C   (int number, lv_obj_t* pages, lv_color_t color);
     void Loop       (void);         // Timer loop control
     void Start      (int timer);    // Start this time.
+    void Flash      (void);         // Time value flashing
     };
 

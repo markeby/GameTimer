@@ -43,6 +43,22 @@
     }
 
 //#####################################################################
+void PLAYER_C::Flash ()
+    {
+    if ( FlashTimer < 0 )
+        {
+        FlashState = !FlashState;
+        if ( FlashState )
+            lv_obj_clear_flag (Label, LV_OBJ_FLAG_HIDDEN);  // Show the object
+        else
+            lv_obj_add_flag   (Label, LV_OBJ_FLAG_HIDDEN);  // Hide the object
+        FlashTimer = FLASH_RATE;
+        }
+    else
+        FlashTimer -= DeltaClock;
+    }
+
+//#####################################################################
 void PLAYER_C::Start (int timer)
     {
     ZeroTimer  = -1;
@@ -50,7 +66,7 @@ void PLAYER_C::Start (int timer)
     CountDown  = 0;
     FlashTimer = FLASH_RATE;
     FlashState = true;
-    Flash      = false;
+    FlashFlag  = false;
     HitZero    = false;
     Active     = true;
 
@@ -69,6 +85,12 @@ void PLAYER_C::Loop ()
     {
     if ( Active )
         {
+        if ( !FlashState )  // Make sure the time is visable.
+            {
+            lv_obj_clear_flag (Label, LV_OBJ_FLAG_HIDDEN);  // Show the object
+            FlashState = true;
+            }
+
         if ( Time > 0 )
             {
             Time -= DeltaClock;
@@ -89,7 +111,7 @@ void PLAYER_C::Loop ()
                 if ( t == 0 )
                     {
                     HitZero   = true;
-                    Flash     = true;
+                    FlashFlag = true;
                     ZeroTimer = -1;
                     ZeroPhase = 4;
                     }
@@ -134,20 +156,7 @@ void PLAYER_C::Loop ()
                 ZeroTimer -= DeltaClock;
             }
         }
-
-    if ( Flash )
-        {
-        if ( FlashTimer < 0 )
-            {
-            FlashState = !FlashState;
-            if ( FlashState )
-                lv_obj_clear_flag (Label, LV_OBJ_FLAG_HIDDEN);  // Show the object
-            else
-                lv_obj_add_flag   (Label, LV_OBJ_FLAG_HIDDEN);  // Hide the object
-            FlashTimer = FLASH_RATE;
-            }
-        else
-            FlashTimer -= DeltaClock;
-        }
+    if ( FlashFlag )
+        Flash ();
     }
 

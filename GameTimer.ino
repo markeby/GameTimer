@@ -15,8 +15,8 @@
 #define DRAW_BUF_SIZE   (SCREEN_WIDTH * SCREEN_HEIGHT / 10 * (LV_COLOR_DEPTH / 8))
 uint32_t    draw_buf[DRAW_BUF_SIZE / 4];
 
-Arduino_DataBus*    bus     = new Arduino_ESP32QSPI (SCREEN_CS, SCREEN_SCLK, SCREEN_SDIO0, SCREEN_SDIO1, SCREEN_SDIO2, SCREEN_SDIO3);
-Arduino_GFX*        gfx     = new Arduino_SH8601    (bus, SCREEN_RST, 0, false, SCREEN_WIDTH, SCREEN_HEIGHT);
+Arduino_DataBus*    bus = new Arduino_ESP32QSPI (SCREEN_CS, SCREEN_SCLK, SCREEN_SDIO0, SCREEN_SDIO1, SCREEN_SDIO2, SCREEN_SDIO3);
+Arduino_GFX*        gfx = new Arduino_SH8601    (bus, SCREEN_RST, 0, false, SCREEN_WIDTH, SCREEN_HEIGHT);
 TouchDrvCHSC5816    touch;
 TouchDrvInterface*  pTouch;
 uint64_t            DeltaClock;
@@ -25,20 +25,32 @@ PLAYER_C*           ActivePlayer;
 int                 CurrentPlayer;
 lv_obj_t*           Pages;
 GAME_STATE          GameState;
+bool                Touched = false;
 int                 NumberPlayers   = DEFAULT_NUMBER_PLAYERS;
 int                 TimerStartValue = DEFAULT_TIME;
+
+lv_obj_t*           RandomPage[MAX_NUMBER_PLAYERS];
+bool                RandomFirst = true;
+int                 RandomTimer = 0;
+int                 RandomCurrent;
+
+lv_obj_t*           NumPlayPage;
+byte                NumPlayPageIndex;
+lv_obj_t*           NumPlaySpinbox;
+
+lv_obj_t*           TimeSetPage;
+byte                TimeSetPageIndex;
+lv_obj_t*           TimeSetPageSpinbox;
 
 //#####################################################################
 void CHSC5816_Initialization(void)
     {
-    TouchDrvCHSC5816 *pd1 = static_cast<TouchDrvCHSC5816 *>(pTouch);
-
-    touch.setPins(TOUCH_RST, TOUCH_INT);
-    if (!touch.begin(Wire, CHSC5816_SLAVE_ADDRESS, IIC_SDA, IIC_SCL))
+    touch.setPins (TOUCH_RST, TOUCH_INT);
+    if ( !touch.begin (Wire, CHSC5816_SLAVE_ADDRESS, IIC_SDA, IIC_SCL) )
         {
         printf ("Failed to find CHSC5816!");
         while (1)
-            delay(1000);
+            delay (1000);
         }
     }
 
@@ -53,24 +65,34 @@ void my_disp_flush (lv_display_t *disp, const lv_area_t *area, uint8_t *px_map)
     }
 
 //#####################################################################
+// Read the touchpad
+void my_touchpad_read (lv_indev_t *indev, lv_indev_data_t *data)
+    {
+    int16_t Touch_x[2], Touch_y[2];
+    uint8_t touchpad = touch.getPoint (Touch_x, Touch_y);
+
+    if ( touchpad > 0 )
+        {
+ //       data->state = LV_INDEV_STATE_PR;
+
+        /*Set the coordinates*/
+        DbgD (Touch_x[0]);
+        DbgDn (Touch_y[0]);
+        touch.idle ();
+        Touched = true;
+ //       data->point.x = Touch_x[0];
+ //       data->point.y = Touch_y[0];
+        }
+    else
+        data->state = LV_INDEV_STATE_REL;
+    }
+
+//#####################################################################
 // use Arduinos millis() as tick source
 static uint32_t my_tick (void)
     {
     return millis ();
     }
-
-lv_obj_t* RandomPage[MAX_NUMBER_PLAYERS];
-bool      RandomFirst = true;
-int       RandomTimer = 0;
-int       RandomCurrent;
-
-lv_obj_t* NumPlayPage;
-byte      NumPlayPageIndex;
-lv_obj_t* NumPlaySpinbox;
-
-lv_obj_t* TimeSetPage;
-byte      TimeSetPageIndex;
-lv_obj_t* TimeSetPageSpinbox;
 
 //#####################################################################
 void randomizeLoop ()
@@ -88,7 +110,6 @@ void randomizeLoop ()
         if ( RandomTimer < 0 )
             {
             RandomCurrent = ++RandomCurrent % NumberPlayers;
-            DbgD (RandomCurrent);
             lv_tabview_set_act (Pages, MAX_NUMBER_PLAYERS + RandomCurrent, LV_ANIM_OFF);
             RandomTimer = 1000;
             }
@@ -126,6 +147,7 @@ void PlayerStart (int player)
     CurrentPlayer = player;
     ActivePlayer  = Player[CurrentPlayer];
     ActivePlayer->Start (TimerStartValue);
+//    lv_timer_handler ();
     }
 
 lv_palette_t Colors[MAX_NUMBER_PLAYERS] = { LV_PALETTE_RED, LV_PALETTE_BLUE, LV_PALETTE_GREEN, LV_PALETTE_PURPLE };
@@ -143,6 +165,11 @@ void lvgl_init (void)
     disp = lv_display_create (SCREEN_WIDTH, SCREEN_HEIGHT);
     lv_display_set_flush_cb  (disp, my_disp_flush);
     lv_display_set_buffers   (disp, draw_buf, NULL, sizeof(draw_buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
+
+//    /*Initialize the (dummy) input device driver for the touch panel input */
+//    lv_indev_t *indev = lv_indev_create();
+//    lv_indev_set_type    (indev, LV_INDEV_TYPE_POINTER); /*Touchpad should have POINTER type*/
+//    lv_indev_set_read_cb (indev, my_touchpad_read);
 
     Pages = lv_tabview_create (lv_scr_act ());
     lv_tabview_set_tab_bar_size (Pages, 0);
@@ -173,9 +200,9 @@ void lvgl_init (void)
     NumPlayPage = lv_tabview_add_tab (Pages, "");
     NumPlayPageIndex = MAX_NUMBER_PLAYERS * 2;
     label = lv_label_create     (NumPlayPage);
-    lv_obj_set_style_text_font  (label, &lv_font_montserrat_46, 0);
+    lv_obj_set_style_text_font  (label, &lv_font_montserrat_48, 0);
     lv_label_set_text           (label, "Set players");
-    lv_obj_align                (label, LV_ALIGN_TOP_MID, 0, 81);
+    lv_obj_align                (label, LV_ALIGN_CENTER, 0, -46);
 
     NumPlaySpinbox = lv_spinbox_create (NumPlayPage);
     lv_obj_add_style            (NumPlaySpinbox, &spinstyle, 0);
@@ -183,15 +210,15 @@ void lvgl_init (void)
     lv_obj_remove_style         (NumPlaySpinbox, NULL, LV_PART_CURSOR);
     lv_spinbox_set_range        (NumPlaySpinbox, 2, 4);
     lv_spinbox_set_digit_format (NumPlaySpinbox, 1, 0);
-    lv_obj_center               (NumPlaySpinbox);
+    lv_obj_align                (NumPlaySpinbox, LV_ALIGN_CENTER, 0, 46);
     lv_spinbox_set_value        (NumPlaySpinbox, NumberPlayers);
 
     TimeSetPage = lv_tabview_add_tab (Pages, "");
     TimeSetPageIndex = NumPlayPageIndex + 1;
     label = lv_label_create     (TimeSetPage);
-    lv_obj_set_style_text_font  (label, &lv_font_montserrat_46, 0);
+    lv_obj_set_style_text_font  (label, &lv_font_montserrat_48, 0);
     lv_label_set_text           (label, "Set time");
-    lv_obj_align                (label, LV_ALIGN_TOP_MID, 0, 81);
+    lv_obj_align                (label, LV_ALIGN_CENTER, 0, -46);
 
     TimeSetPageSpinbox = lv_spinbox_create (TimeSetPage);
     lv_obj_add_style            (TimeSetPageSpinbox, &spinstyle, 0);
@@ -199,7 +226,7 @@ void lvgl_init (void)
     lv_obj_remove_style         (TimeSetPageSpinbox, NULL, LV_PART_CURSOR);
     lv_spinbox_set_range        (TimeSetPageSpinbox, 10, 100);
     lv_spinbox_set_digit_format (TimeSetPageSpinbox, 2, 0);
-    lv_obj_center               (TimeSetPageSpinbox);
+    lv_obj_align                (TimeSetPageSpinbox, LV_ALIGN_CENTER, 0, 46);
     lv_spinbox_set_value        (TimeSetPageSpinbox, TimerStartValue);
     }
 
@@ -237,6 +264,7 @@ void setup ()
     // Let's go!
     ActivePlayer = nullptr;
     StateChange (GAME_STATE::SET_PLAYERS);
+    touch.idle ();
     }
 
 //#####################################################################
@@ -265,7 +293,6 @@ void loop()
                 StateChange (GAME_STATE::SET_TIME);
             else if ( knob != KNOBBY::Null )
                 {
-                DbgD (NumberPlayers);
                 NumberPlayers = (NumberPlayers + (int)knob) % (MAX_NUMBER_PLAYERS + 1);
                 if ( NumberPlayers < MIN_NUMBER_PLAYERS )
                     NumberPlayers = MIN_NUMBER_PLAYERS;
@@ -280,7 +307,6 @@ void loop()
                 StateChange (GAME_STATE::SELECT_START);
             else if ( knob != KNOBBY::Null )
                 {
-                DbgD (TimerStartValue);
                 TimerStartValue = TimerStartValue + ((int)knob * 10);
                 if ( TimerStartValue > MAX_TIME  )
                     TimerStartValue = MAX_TIME;
@@ -302,6 +328,7 @@ void loop()
             break;
 
         case GAME_STATE::IN_PLAY_START:
+            ActivePlayer->Flash ();
             if ( bump )
                 StateChange (GAME_STATE::IN_PLAY);
             else if ( knob != KNOBBY::Null )
@@ -309,7 +336,7 @@ void loop()
             break;
 
         case GAME_STATE::IN_PLAY:
-            if ( bump )
+            if ( bump || Touched )
                 PlayerStart (++CurrentPlayer % NumberPlayers);
             else if ( knob != KNOBBY::Null )
                 StateChange(GAME_STATE::SELECT_START);
